@@ -4,7 +4,7 @@ import { assert } from "console";
 import { NextApiRequest } from "next";
 import NextAuth from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod"
+import { z } from "zod";
 
 //@ts-ignore
 import youtubesearchapi from "youtube-search-api"
