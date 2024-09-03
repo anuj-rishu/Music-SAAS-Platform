@@ -1,16 +1,13 @@
 import { prismaClient } from "@/app/lib/db";
 import { PrismaClient } from "@prisma/client/extension";
-import { assert } from "console";
-import { NextApiRequest } from "next";
-import NextAuth from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 //@ts-ignore
-import youtubesearchapi from "youtube-search-api"
-import { json } from "stream/consumers";
+import youtubesearchapi from "youtube-search-api";
 
-var urlRegex = /^(?:(?:https?:)?\/\/)?(?:www\.)?(?:m\.)?(?:youtu(?:be)?\.com\/(?:v\/|embed\/|watch(?:\/|\?v=))|youtu\.be\/)((?:\w|-){11})(?:\S+)?$/;
+var urlRegex =
+  /^(?:(?:https?:)?\/\/)?(?:www\.)?(?:m\.)?(?:youtu(?:be)?\.com\/(?:v\/|embed\/|watch(?:\/|\?v=))|youtu\.be\/)((?:\w|-){11})(?:\S+)?$/;
 
 const CreateStreamSchema = z.object({
   creatorId: z.string(),
@@ -35,13 +32,13 @@ export async function POST(req: NextRequest) {
 
     const res = await youtubesearchapi.GetVideoDetails(extarctedId);
     const thumbnails = res?.thumbnails?.thumbnails ?? [];
-    console.log(res.title)
-    console.log(res.thumbnail.thumbnails)
-    console.log(JSON.stringify(res.thumbnail.thumbnails))
-    thumbnails.sort((a: { width: number }, b: { width: number }) => a.width ? -1 : 1);
+    console.log(res.title);
+    console.log(res.thumbnail.thumbnails);
+    console.log(JSON.stringify(res.thumbnail.thumbnails));
+    thumbnails.sort((a: { width: number }, b: { width: number }) =>
+      a.width ? -1 : 1
+    );
 
-  
-    
     const stream = await prismaClient.stream.create({
       data: {
         userId: data.creatorId,
@@ -49,16 +46,21 @@ export async function POST(req: NextRequest) {
         extarctedId,
         type: "Youtube",
         title: res.title ?? "Can Not find Video",
-        smaillImg: (thumbnails.length > 1 ? thumbnails[thumbnails.length - 2].url : thumbnails[thumbnails.length - 1]?.url) ?? "https://res.cloudinary.com/dtberehdy/image/upload/v1725378921/music%20platform%20image/default%20YouTube%20image.jpg",
-        bigImg: thumbnails[thumbnails.length - 1]?.url ?? "https://res.cloudinary.com/dtberehdy/image/upload/v1725378921/music%20platform%20image/default%20YouTube%20image.jpg"
-      }
-    });
+        smaillImg:
+        (thumbnails.length > 1
+          ? thumbnails[thumbnails.length - 2].url
+          : thumbnails[thumbnails.length - 1]?.url) ??
+        "https://res.cloudinary.com/dtberehdy/image/upload/v1725378921/music%20platform%20image/default%20YouTube%20image.jpg",
+      bigImg:
+        thumbnails[thumbnails.length - 1]?.url ??
+        "https://res.cloudinary.com/dtberehdy/image/upload/v1725378921/music%20platform%20image/default%20YouTube%20image.jpg",
+    },
+  });
 
     return NextResponse.json({
       message: "Added stream",
-      id: stream.id
+      id: stream.id,
     });
-
   } catch (e) {
     console.log(e);
     return NextResponse.json(
@@ -76,10 +78,10 @@ export async function GET(req: NextRequest) {
   const creatorId = req.nextUrl.searchParams.get("creatorId");
   const Streams = await PrismaClient.stream.findMany({
     where: {
-      userId: creatorId ?? ""
-    }
+      userId: creatorId ?? "",
+    },
   });
   return NextResponse.json({
-    Streams
+    Streams,
   });
 }
