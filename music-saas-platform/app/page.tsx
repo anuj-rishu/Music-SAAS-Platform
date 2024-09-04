@@ -1,14 +1,19 @@
+"use client"
 import { Appbar } from "./components/Appbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Users, Tv, Share2 } from "lucide-react";
 import { Footer } from "./components/footer";
+import { Redirect } from "./components/Redirect";
+
 
 export default function Home() {
   return (
     <main className="">
       <div className="min-h-screen bg-gradient-to-b from-purple-900 via-gray-900 to-black text-white relative overflow-hidden">
         <Appbar />
+        <Redirect/>
+   
         {/* Music note background */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-1/4 left-1/4 w-20 h-20 border-8 border-white rounded-full"></div>
