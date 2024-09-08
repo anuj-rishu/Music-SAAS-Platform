@@ -166,10 +166,11 @@ export async function POST(req: NextRequest) {
             upvotes: 0
         });
     } catch (e) {
-        console.error("Error while adding a stream:", e);
+        const error = e as Error;
+        console.error("Error while adding a stream:", error);
         return NextResponse.json({
-            message: `Error while adding a stream: ${e.message}`,
-            details: e.stack
+            message: `Error while adding a stream: ${error.message}`,
+            details: error.stack
         }, {
             status: 500
         });
@@ -252,10 +253,11 @@ export async function GET(req: NextRequest) {
             isCreator
         });
     } catch (e) {
-        console.error("Error while fetching streams:", e);
+        const error = e as Error;
+        console.error("Error while fetching streams:", error);
         return NextResponse.json({
-            message: `Error while fetching streams: ${e.message}`,
-            details: e.stack
+            message: `Error while fetching streams: ${error.message}`,
+            details: error.stack
         }, {
             status: 500
         });
