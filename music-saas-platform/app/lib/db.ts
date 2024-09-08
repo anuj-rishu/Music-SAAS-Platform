@@ -1,4 +1,15 @@
 import { PrismaClient } from "@prisma/client";
 
-export const prismaClient = new PrismaClient();
-//  this isnt the best, we should introduce a singleton herea
+declare global {
+    // This is necessary to avoid TypeScript errors
+    // when using the global object in a TypeScript file
+    var prisma: PrismaClient | undefined;
+}
+
+const prismaClient = global.prisma || new PrismaClient();
+
+if (process.env.NODE_ENV !== "production") {
+    global.prisma = prismaClient;
+}
+
+export { prismaClient };

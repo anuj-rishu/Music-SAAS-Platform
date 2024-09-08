@@ -9,9 +9,18 @@ const RemoveStreamSchema = z.object({
 
 export async function DELETE(req: NextRequest) {
     const session = await getServerSession();
+
+    if (!session || !session.user?.email) {
+        return NextResponse.json({
+            message: "Unauthenticated"
+        }, {
+            status: 403
+        });
+    }
+
     const user = await prismaClient.user.findFirst({
         where: {
-            email: session?.user?.email ?? ""
+            email: session.user.email
         }
     });
 
@@ -24,9 +33,9 @@ export async function DELETE(req: NextRequest) {
     }
 
     try {
-        const { searchParams } = new URL(req.url)
-        const streamId = searchParams.get('streamId')
-        
+        const { searchParams } = new URL(req.url);
+        const streamId = searchParams.get('streamId');
+
         if (!streamId) {
             return NextResponse.json({
                 message: "Stream ID is required"
@@ -35,7 +44,10 @@ export async function DELETE(req: NextRequest) {
             });
         }
 
-        await prismaClient.stream.delete({
+        // Validate streamId using schema
+        RemoveStreamSchema.parse({ streamId });
+
+        await prismaClient.stream.deleteMany({
             where: {
                 id: streamId,
                 userId: user.id
@@ -46,10 +58,11 @@ export async function DELETE(req: NextRequest) {
             message: "Song removed successfully"
         });
     } catch (e) {
+        console.error("Error while removing the song:", e);
         return NextResponse.json({
             message: "Error while removing the song"
         }, {
-            status: 400
+            status: 500
         });
     }
 }

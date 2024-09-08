@@ -4,9 +4,18 @@ import { NextResponse } from "next/server";
 
 export async function POST() {
     const session = await getServerSession();
+
+    if (!session || !session.user?.email) {
+        return NextResponse.json({
+            message: "Unauthenticated"
+        }, {
+            status: 403
+        });
+    }
+
     const user = await prismaClient.user.findFirst({
         where: {
-            email: session?.user?.email ?? ""
+            email: session.user.email
         }
     });
 

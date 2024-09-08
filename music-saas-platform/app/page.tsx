@@ -1,14 +1,18 @@
 "use client";
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-//@ts-ignore
-import { Users, Radio, Headphones } from "lucide-react"
-import { Appbar } from "./components/Appbar"
-import useRedirect from "./hooks/useRedirect"
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Users, Radio, Headphones } from "lucide-react";
+import { Appbar } from "./components/Appbar";
+import useRedirect from "./hooks/useRedirect";
 
 export default function LandingPage() {
   useRedirect();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle form submission logic here
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
@@ -63,7 +67,7 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="w-full max-w-sm space-y-2">
-              <form className="flex space-x-2">
+              <form className="flex space-x-2" onSubmit={handleSubmit}>
                 <Input 
                   className="max-w-lg flex-1 bg-gray-800 border-gray-700 text-white placeholder-gray-500" 
                   placeholder="Enter your email" 
@@ -87,5 +91,5 @@ export default function LandingPage() {
         </nav>
       </footer>
     </div>
-  )
+  );
 }

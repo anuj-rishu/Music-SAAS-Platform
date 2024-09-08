@@ -4,60 +4,77 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
     const session = await getServerSession();
-    // TODO: You can get rid of the db call here 
-    const user = await prismaClient.user.findFirst({
-       where: {
-           email: session?.user?.email ?? ""
-       }
-   });
 
-   if (!user) {
-       return NextResponse.json({
-           message: "Unauthenticated"
-       }, {
-           status: 403
-       })
-   }
-   console.log("before first call");
+    if (!session || !session.user?.email) {
+        return NextResponse.json({
+            message: "Unauthenticated"
+        }, {
+            status: 403
+        });
+    }
 
-   const mostUpvotedStream = await prismaClient.stream.findFirst({
-        where: {
-            userId: user.id,
-            played: false
-        },
-        orderBy: {
-            upvotes: {
-                _count: 'desc'
+    const userId = session.user.id; // Assuming session contains user ID
+
+    try {
+        console.log("before first call");
+
+        const mostUpvotedStream = await prismaClient.stream.findFirst({
+            where: {
+                userId: userId,
+                played: false
+            },
+            orderBy: {
+                upvotes: {
+                    _count: 'desc'
+                }
             }
-        }
-   });
-   console.log("after first call");
-   console.log(mostUpvotedStream?.id )
- 
-   await Promise.all([prismaClient.currentStream.upsert({
-        where: {
-            userId: user.id
-        },
-        update: {
-            userId: user.id,
-            streamId: mostUpvotedStream?.id 
-        },
-        create: {
-            userId: user.id,
-            streamId: mostUpvotedStream?.id
-        }
-    }), prismaClient.stream.update({
-        where: {
-            id: mostUpvotedStream?.id ?? ""
-        },
-        data: {
-            played: true,
-            playedTs: new Date()
-        }
-   })])
+        });
 
-   return NextResponse.json({
-    stream: mostUpvotedStream
-   })
-   
+        console.log("after first call");
+        console.log(mostUpvotedStream?.id);
+
+        if (!mostUpvotedStream) {
+            return NextResponse.json({
+                message: "No stream found"
+            }, {
+                status: 404
+            });
+        }
+
+        await Promise.all([
+            prismaClient.currentStream.upsert({
+                where: {
+                    userId: userId
+                },
+                update: {
+                    userId: userId,
+                    streamId: mostUpvotedStream.id
+                },
+                create: {
+                    userId: userId,
+                    streamId: mostUpvotedStream.id
+                }
+            }),
+            prismaClient.stream.update({
+                where: {
+                    id: mostUpvotedStream.id
+                },
+                data: {
+                    played: true,
+                    playedTs: new Date()
+                }
+            })
+        ]);
+
+        return NextResponse.json({
+            stream: mostUpvotedStream
+        });
+    } catch (error) {
+        console.error("Error processing request:", error);
+        return NextResponse.json({
+            message: "Error while processing request"
+        }, {
+            status: 500
+        });
+    }
 }

@@ -1,16 +1,16 @@
 import GoogleProvider from "next-auth/providers/google";
-import NextAuth, {type DefaultSession } from "next-auth"
+import NextAuth, { type DefaultSession, type NextAuthOptions } from "next-auth";
 import { prismaClient } from "@/app/lib/db";
 
 declare module "next-auth" {
     interface Session {
         user: {
-            id: string
-        } & DefaultSession["user"]
+            id: string;
+        } & DefaultSession["user"];
     }
 }
 
-const handler = NextAuth({
+const options: NextAuthOptions = {
     providers: [
         GoogleProvider({
             clientId: process.env.GOOGLE_CLIENT_ID ?? "",
@@ -19,49 +19,52 @@ const handler = NextAuth({
     ],
     secret: process.env.NEXTAUTH_SECRET ?? "secret",
     callbacks: {
-        async signIn(params) {
-            if (!params.user.email) {
+        async signIn({ user }) {
+            if (!user.email) {
                 return false;
             }
 
             try {
                 const existingUser = await prismaClient.user.findUnique({
                     where: {
-                        email: params.user.email
+                        email: user.email
                     }
-                })
+                });
                 if (existingUser) {
-                    return true
+                    return true;
                 }
                 await prismaClient.user.create({
                     data: {
-                        email: params.user.email,
+                        email: user.email,
                         provider: "Google"
-                    } 
-                })
+                    }
+                });
                 return true;
-             } catch(e) {
+            } catch (e) {
                 console.log(e);
                 return false;
-             }
+            }
         },
-        async session({session, token, user}) {
+        async session({ session }) {
             const dbUser = await prismaClient.user.findUnique({
                 where: {
                     email: session.user.email as string
                 }
-            })
+            });
             if (!dbUser) {
                 return session;
             }
             return {
-                ...session, 
+                ...session,
                 user: {
+                    ...session.user,
                     id: dbUser.id
                 }
-            }
+            };
         }
     }
-})
+};
 
-export { handler as GET, handler as POST }
+const handler = NextAuth(options);
+
+export { handler as GET, handler as POST };

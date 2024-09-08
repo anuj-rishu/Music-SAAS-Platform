@@ -4,20 +4,22 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const GET = async (req: NextRequest) => {
     const session = await getServerSession();
-    // TODO: You can get rid of the db call here 
-    const user = await prismaClient.user.findFirst({
-        where: {
-            email: session?.user?.email ?? ""
-        }
-    });
 
-    if (!user) {
+    if (!session || !session.user?.email) {
         return NextResponse.json({
             message: "Unauthenticated"
         }, {
             status: 403
-        })
+        });
     }
+
+    // Assuming session contains enough information to identify the user
+    const user = {
+        email: session.user.email,
+        name: session.user.name,
+        id: session.user.id
+    };
+
     return NextResponse.json({
         user
     });
