@@ -159,7 +159,8 @@ export async function POST(req: NextRequest) {
     } catch (e) {
         console.error("Error while adding a stream:", e);
         return NextResponse.json({
-            message: "Error while adding a stream"
+            message: `Error while adding a stream: ${(e as Error).message}`,
+            details: (e as Error).stack
         }, {
             status: 500
         });
@@ -244,7 +245,8 @@ export async function GET(req: NextRequest) {
     } catch (e) {
         console.error("Error while fetching streams:", e);
         return NextResponse.json({
-            message: "Error while fetching streams"
+            message: `Error while fetching streams: ${(e as Error).message}`,
+            details: (e as Error).stack
         }, {
             status: 500
         });
