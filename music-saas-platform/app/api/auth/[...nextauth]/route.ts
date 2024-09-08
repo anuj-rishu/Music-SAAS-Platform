@@ -1,8 +1,14 @@
-import { PrismaClient } from "@prisma/client";
-import NextAuth from "next-auth/next";
 import GoogleProvider from "next-auth/providers/google";
+import NextAuth, { type DefaultSession } from "next-auth";
+import { prismaClient } from "@/app/lib/db";
 
-const prisma = new PrismaClient();
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+    } & DefaultSession["user"];
+  }
+}
 
 const handler = NextAuth({
   providers: [
@@ -11,21 +17,49 @@ const handler = NextAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     }),
   ],
+  secret: process.env.NEXTAUTH_SECRET ?? "secret",
   callbacks: {
     async signIn(params) {
-      if(!params.user.email)
-   return false;
+      if (!params.user.email) {
+        return false;
+      }
+
       try {
-        await prisma.user.create({
+        const existingUser = await prismaClient.user.findUnique({
+          where: {
+            email: params.user.email,
+          },
+        });
+        if (existingUser) {
+          return true;
+        }
+        await prismaClient.user.create({
           data: {
-            email: "params.user.email",
+            email: params.user.email,
             provider: "Google",
           },
         });
+        return true;
       } catch (e) {
-        console.error(e);
+        console.log(e);
+        return false;
       }
-      return true;
+    },
+    async session({ session, token, user }) {
+      const dbUser = await prismaClient.user.findUnique({
+        where: {
+          email: session.user.email as string,
+        },
+      });
+      if (!dbUser) {
+        return session;
+      }
+      return {
+        ...session,
+        user: {
+          id: dbUser.id,
+        },
+      };
     },
   },
 });
