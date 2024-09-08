@@ -1,6 +1,7 @@
 import { prismaClient } from "@/app/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+//@ts-ignore
 import youtubesearchapi from "youtube-search-api";
 import { YT_REGEX } from "@/app/lib/utils";
 import { getServerSession } from "next-auth";
@@ -60,15 +61,6 @@ export async function POST(req: NextRequest) {
 
         const extractedId = data.url.split("?v=")[1];
         const res = await youtubesearchapi.GetVideoDetails(extractedId);
-
-        if (!res || !res.thumbnail || !res.thumbnail.thumbnails) {
-            console.error("YouTube API response does not contain thumbnails:", res);
-            return NextResponse.json({
-                message: "Failed to retrieve video details from YouTube"
-            }, {
-                status: 500
-            });
-        }
 
         if (user.id !== data.creatorId) {
             const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
@@ -165,11 +157,9 @@ export async function POST(req: NextRequest) {
             upvotes: 0
         });
     } catch (e) {
-        const error = e as Error;
-        console.error("Error while adding a stream:", error);
+        console.error(e);
         return NextResponse.json({
-            message: `Error while adding a stream: ${error.message}`,
-            details: error.stack
+            message: "Error while adding a stream"
         }, {
             status: 500
         });
@@ -252,11 +242,9 @@ export async function GET(req: NextRequest) {
             isCreator
         });
     } catch (e) {
-        const error = e as Error;
-        console.error("Error while fetching streams:", error);
+        console.error(e);
         return NextResponse.json({
-            message: `Error while fetching streams: ${error.message}`,
-            details: error.stack
+            message: "Error while fetching streams"
         }, {
             status: 500
         });
