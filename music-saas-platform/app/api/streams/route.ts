@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
             upvotes: 0
         });
     } catch (e) {
-        console.error(e);
+        console.error("Error while adding a stream:", e);
         return NextResponse.json({
             message: "Error while adding a stream"
         }, {
@@ -242,7 +242,7 @@ export async function GET(req: NextRequest) {
             isCreator
         });
     } catch (e) {
-        console.error(e);
+        console.error("Error while fetching streams:", e);
         return NextResponse.json({
             message: "Error while fetching streams"
         }, {

@@ -124,7 +124,7 @@ export default function StreamView({
             toast.error("Invalid YouTube URL format")
             return
         }
-        setLoading(true)
+               setLoading(true);
         try {
             const res = await fetch("/api/streams/", {
                 method: "POST",
@@ -135,22 +135,22 @@ export default function StreamView({
                     creatorId,
                     url: inputLink
                 })
-            })
-            const data = await res.json()
+            });
+        
             if (!res.ok) {
-                throw new Error(data.message || "An error occurred")
-            }
-            setQueue([...queue, data])
-            setInputLink('')
-            toast.success("Song added to queue successfully")
-        } catch (error) {
-            if (error instanceof Error) {
-                toast.error(error.message)
+                const errorData = await res.json();
+                console.error("Error:", errorData.message);
+                // Handle error appropriately
             } else {
-                toast.error("An unexpected error occurred")
+                const data = await res.json();
+                console.log("Success:", data);
+                // Handle success appropriately
             }
+        } catch (error) {
+            console.error("Fetch error:", error);
+            // Handle fetch error appropriately
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
     }
 
