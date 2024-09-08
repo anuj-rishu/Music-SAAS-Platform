@@ -62,6 +62,15 @@ export async function POST(req: NextRequest) {
         const extractedId = data.url.split("?v=")[1];
         const res = await youtubesearchapi.GetVideoDetails(extractedId);
 
+        if (!res || !res.thumbnail || !res.thumbnail.thumbnails) {
+            console.error("YouTube API response does not contain thumbnails:", res);
+            return NextResponse.json({
+                message: "Failed to retrieve video details from YouTube"
+            }, {
+                status: 500
+            });
+        }
+
         if (user.id !== data.creatorId) {
             const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
             const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
@@ -159,8 +168,8 @@ export async function POST(req: NextRequest) {
     } catch (e) {
         console.error("Error while adding a stream:", e);
         return NextResponse.json({
-            message: `Error while adding a stream: ${(e as Error).message}`,
-            details: (e as Error).stack
+            message: `Error while adding a stream: ${e.message}`,
+            details: e.stack
         }, {
             status: 500
         });
@@ -245,8 +254,8 @@ export async function GET(req: NextRequest) {
     } catch (e) {
         console.error("Error while fetching streams:", e);
         return NextResponse.json({
-            message: `Error while fetching streams: ${(e as Error).message}`,
-            details: (e as Error).stack
+            message: `Error while fetching streams: ${e.message}`,
+            details: e.stack
         }, {
             status: 500
         });
