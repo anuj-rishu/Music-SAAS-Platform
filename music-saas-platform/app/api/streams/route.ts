@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
                 where: {
                     userId: data.creatorId,
                     addedBy: user.id,
-                    createAt: {
+                    createdAt: {
                         gte: tenMinutesAgo
                     }
                 }
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
                 where: {
                     userId: data.creatorId,
                     extractedId: extractedId,
-                    createAt: {
+                    createdAt: {
                         gte: tenMinutesAgo
                     }
                 }
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
                 where: {
                     userId: data.creatorId,
                     addedBy: user.id,
-                    createAt: {
+                    createdAt: {
                         gte: twoMinutesAgo
                     }
                 }
