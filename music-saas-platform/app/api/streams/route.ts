@@ -12,23 +12,13 @@ const CreateStreamSchema = z.object({
 });
 
 const MAX_QUEUE_LEN = 20;
-const DEFAULT_SMALL_IMG = "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_640.jpg";
-const DEFAULT_BIG_IMG = "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_640.jpg";
 
 export async function POST(req: NextRequest) {
     try {
         const session = await getServerSession();
-        if (!session) {
-            return NextResponse.json({
-                message: "Unauthenticated"
-            }, {
-                status: 403
-            });
-        }
-
         const user = await prismaClient.user.findFirst({
             where: {
-                email: session.user?.email ?? ""
+                email: session?.user?.email ?? ""
             }
         });
 
@@ -50,7 +40,7 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        const isYt = data.url.match(YT_REGEX);
+        const isYt = data.url.match(YT_REGEX)
         if (!isYt) {
             return NextResponse.json({
                 message: "Invalid YouTube URL format"
@@ -62,6 +52,7 @@ export async function POST(req: NextRequest) {
         const extractedId = data.url.split("?v=")[1];
         const res = await youtubesearchapi.GetVideoDetails(extractedId);
 
+        // Check if the user is not the creator
         if (user.id !== data.creatorId) {
             const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
             const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
@@ -70,17 +61,18 @@ export async function POST(req: NextRequest) {
                 where: {
                     userId: data.creatorId,
                     addedBy: user.id,
-                    createdAt: {
+                    createAt: {
                         gte: tenMinutesAgo
                     }
                 }
             });
 
+            // Check for duplicate song in the last 10 minutes
             const duplicateSong = await prismaClient.stream.findFirst({
                 where: {
                     userId: data.creatorId,
                     extractedId: extractedId,
-                    createdAt: {
+                    createAt: {
                         gte: tenMinutesAgo
                     }
                 }
@@ -93,11 +85,12 @@ export async function POST(req: NextRequest) {
                 });
             }
 
+            // Rate limiting checks for non-creator users
             const streamsLastTwoMinutes = await prismaClient.stream.count({
                 where: {
                     userId: data.creatorId,
                     addedBy: user.id,
-                    createdAt: {
+                    createAt: {
                         gte: twoMinutesAgo
                     }
                 }
@@ -121,7 +114,7 @@ export async function POST(req: NextRequest) {
         }
 
         const thumbnails = res.thumbnail.thumbnails;
-        thumbnails.sort((a: { width: number }, b: { width: number }) => a.width - b.width);
+        thumbnails.sort((a: {width: number}, b: {width: number}) => a.width < b.width ? -1 : 1);
 
         const existingActiveStreams = await prismaClient.stream.count({
             where: {
@@ -146,8 +139,8 @@ export async function POST(req: NextRequest) {
                 extractedId,
                 type: "Youtube",
                 title: res.title ?? "Can't find video",
-                smallImg: (thumbnails.length > 1 ? thumbnails[thumbnails.length - 2].url : thumbnails[thumbnails.length - 1].url) ?? DEFAULT_SMALL_IMG,
-                bigImg: thumbnails[thumbnails.length - 1].url ?? DEFAULT_BIG_IMG
+                smallImg: (thumbnails.length > 1 ? thumbnails[thumbnails.length - 2].url : thumbnails[thumbnails.length - 1].url) ?? "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_640.jpg",
+                bigImg: thumbnails[thumbnails.length - 1].url ?? "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_640.jpg"
             }
         });
 
@@ -156,7 +149,7 @@ export async function POST(req: NextRequest) {
             hasUpvoted: false,
             upvotes: 0
         });
-    } catch (e) {
+    } catch(e) {
         console.error(e);
         return NextResponse.json({
             message: "Error while adding a stream"
@@ -167,86 +160,69 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-    try {
-        const creatorId = req.nextUrl.searchParams.get("creatorId");
-        const session = await getServerSession();
-        if (!session) {
-            return NextResponse.json({
-                message: "Unauthenticated"
-            }, {
-                status: 403
-            });
+    const creatorId = req.nextUrl.searchParams.get("creatorId");
+    const session = await getServerSession();
+    const user = await prismaClient.user.findFirst({
+        where: {
+            email: session?.user?.email ?? ""
         }
+    });
 
-        const user = await prismaClient.user.findFirst({
+    if (!user) {
+        return NextResponse.json({
+            message: "Unauthenticated"
+        }, {
+            status: 403
+        })
+    }
+
+    if (!creatorId) {
+        return NextResponse.json({
+            message: "Error"
+        }, {
+            status: 411
+        })
+    }
+
+    const [streams, activeStream] = await Promise.all([
+        prismaClient.stream.findMany({
             where: {
-                email: session.user?.email ?? ""
-            }
-        });
-
-        if (!user) {
-            return NextResponse.json({
-                message: "Unauthenticated"
-            }, {
-                status: 403
-            });
-        }
-
-        if (!creatorId) {
-            return NextResponse.json({
-                message: "Error"
-            }, {
-                status: 411
-            });
-        }
-
-        const [streams, activeStream] = await Promise.all([
-            prismaClient.stream.findMany({
-                where: {
-                    userId: creatorId,
-                    played: false
+                userId: creatorId,
+                played: false
+            },
+            include: {
+                _count: {
+                    select: {
+                        upvotes: true
+                    }
                 },
-                include: {
-                    _count: {
-                        select: {
-                            upvotes: true
-                        }
-                    },
-                    upvotes: {
-                        where: {
-                            userId: user.id
-                        }
+                upvotes: {
+                    where: {
+                        userId: user.id
                     }
                 }
-            }),
-            prismaClient.currentStream.findFirst({
-                where: {
-                    userId: creatorId
-                },
-                include: {
-                    stream: true
-                }
-            })
-        ]);
+            }
+        }),
+        prismaClient.currentStream.findFirst({
+            where: {
+                userId: creatorId
+            },
+            include: {
+                stream: true
+            }
+        })
+    ]);
 
-        const isCreator = user.id === creatorId;
+    const isCreator = user.id === creatorId;
 
-        return NextResponse.json({
-            streams: streams.map(({ _count, ...rest }) => ({
-                ...rest,
-                upvotes: _count.upvotes,
-                haveUpvoted: rest.upvotes.length ? true : false
-            })),
-            activeStream,
-            creatorId,
-            isCreator
-        });
-    } catch (e) {
-        console.error(e);
-        return NextResponse.json({
-            message: "Error while fetching streams"
-        }, {
-            status: 500
-        });
-    }
+    return NextResponse.json({
+        streams: streams.map(({_count, ...rest}) => ({
+            ...rest,
+            upvotes: _count.upvotes,
+            haveUpvoted: rest.upvotes.length ? true : false
+        })),
+        activeStream,
+        creatorId,
+        isCreator
+    });
 }

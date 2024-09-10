@@ -14,12 +14,12 @@ datasource db {
 }
 
 model User {
-  id            String      @id @default(uuid())
-  email         String      @unique
-  provider      Provider
-  streams       Stream[]    @relation("UserStreams")
-  upvotes       Upvote[]
-  addedStreams  Stream[]    @relation("AddedByUser")
+  id        String      @id @default(uuid())
+  email     String      @unique
+  provider  Provider
+  streams   Stream[]  @relation("user")
+  upvotes   Upvote[]
+  addedStreams Stream[] @relation("addedBy")
 }
 
 model Stream {
@@ -27,25 +27,25 @@ model Stream {
   type          StreamType
   url           String
   extractedId   String
-  title         String      @default("")
-  smallImg      String      @default("")
-  bigImg        String      @default("")
-  active        Boolean     @default(true)
-  played        Boolean     @default(false)
+  title         String     @default("")
+  smallImg      String     @default("")
+  bigImg        String     @default("")
+  active        Boolean    @default(true)
+  played        Boolean    @default(false)
   playedTs      DateTime?
-  createdAt     DateTime    @default(now())
+  createAt      DateTime      @default(now())
   upvotes       Upvote[]
   userId        String
-  user          User        @relation(fields: [userId], references: [id], name: "UserStreams")
+  user          User        @relation(fields: [userId], references: [id], name: "user")
   currentStream CurrentStream?
-  addedBy       String
-  addedByUser   User        @relation("AddedByUser", fields: [addedBy], references: [id])
+  addedBy   String
+  addedByUser User @relation("addedBy", fields: [addedBy], references: [id])
 }
 
 model CurrentStream {
   userId       String    @id
   streamId     String?   @unique
-  stream       Stream?   @relation(fields: [streamId], references: [id])
+  stream       Stream?    @relation(fields: [streamId], references: [id])
 }
 
 model Upvote {
@@ -65,3 +65,9 @@ enum StreamType {
 enum Provider {
   Google
 }
+
+
+
+
+
+

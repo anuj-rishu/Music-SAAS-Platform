@@ -1,15 +1,15 @@
 import StreamView from "@/app/components/StreamView";
 
-interface CreatorProps {
+export default function Creator({
+    params: {
+        creatorId
+    }
+}: {
     params: {
         creatorId: string;
-    };
-}
-
-export default function Creator({ params: { creatorId } }: CreatorProps) {
-    return (
-        <div>
-            <StreamView creatorId={creatorId} playVideo={false} />
-        </div>
-    );
+    }
+}) {
+    return <div>
+        <StreamView creatorId={creatorId} playVideo={false} />
+    </div>
 }

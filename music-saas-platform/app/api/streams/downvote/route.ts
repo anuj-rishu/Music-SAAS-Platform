@@ -5,17 +5,24 @@ import { z } from "zod";
 
 const UpvoteSchema = z.object({
     streamId: z.string(),
-});
+})
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession();
 
-    if (!session || !session.user?.email) {
+    // TODO: You can get rid of the db call here 
+    const user = await prismaClient.user.findFirst({
+        where: {
+            email: session?.user?.email ?? ""
+        }
+    });
+
+    if (!user) {
         return NextResponse.json({
             message: "Unauthenticated"
         }, {
             status: 403
-        });
+        })
     }
 
     try {
@@ -23,7 +30,7 @@ export async function POST(req: NextRequest) {
         await prismaClient.upvote.delete({
             where: {
                 userId_streamId: {
-                    userId: session.user.id, // Assuming session contains user ID
+                    userId: user.id,
                     streamId: data.streamId
                 }
             }
@@ -31,13 +38,13 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             message: "Done!"
-        });
-    } catch (e) {
-        console.error(e);
+        })
+    } catch(e) {
         return NextResponse.json({
             message: "Error while upvoting"
         }, {
-            status: 500
-        });
+            status: 403
+        })
     }
+
 }
