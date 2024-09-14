@@ -1,10 +1,11 @@
-import { prismaClient } from "@/app/lib/db";
-import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { NextRequest, NextResponse } from "next/server";
+import db from "@/lib/db";
 //@ts-ignore
 import youtubesearchapi from "youtube-search-api";
-import { YT_REGEX } from "@/app/lib/utils";
+import { YT_REGEX } from "@/lib/utils";
 import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 
 const CreateStreamSchema = z.object({
   creatorId: z.string(),
@@ -15,23 +16,19 @@ const MAX_QUEUE_LEN = 20;
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession();
-    const user = await prismaClient.user.findFirst({
-      where: {
-        email: session?.user?.email ?? "",
-      },
-    });
+    const session = await getServerSession(authOptions);
 
-    if (!user) {
+    if (!session?.user.id) {
       return NextResponse.json(
         {
           message: "Unauthenticated",
         },
         {
           status: 403,
-        }
+        },
       );
     }
+    const user = session.user;
 
     const data = CreateStreamSchema.parse(await req.json());
 
@@ -42,31 +39,31 @@ export async function POST(req: NextRequest) {
         },
         {
           status: 400,
-        }
+        },
       );
     }
 
     const isYt = data.url.match(YT_REGEX);
-    if (!isYt) {
+    const videoId = data.url ? data.url.match(YT_REGEX)?.[1] : null;
+    if (!isYt || !videoId) {
       return NextResponse.json(
         {
           message: "Invalid YouTube URL format",
         },
         {
           status: 400,
-        }
+        },
       );
     }
 
-    const extractedId = data.url.split("?v=")[1].split("&")[0];
-    const res = await youtubesearchapi.GetVideoDetails(extractedId);
+    const res = await youtubesearchapi.GetVideoDetails(videoId);
 
     // Check if the user is not the creator
     if (user.id !== data.creatorId) {
       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
 
-      const userRecentStreams = await prismaClient.stream.count({
+      const userRecentStreams = await db.stream.count({
         where: {
           userId: data.creatorId,
           addedBy: user.id,
@@ -77,10 +74,10 @@ export async function POST(req: NextRequest) {
       });
 
       // Check for duplicate song in the last 10 minutes
-      const duplicateSong = await prismaClient.stream.findFirst({
+      const duplicateSong = await db.stream.findFirst({
         where: {
           userId: data.creatorId,
-          extractedId: extractedId,
+          extractedId: videoId,
           createAt: {
             gte: tenMinutesAgo,
           },
@@ -93,12 +90,12 @@ export async function POST(req: NextRequest) {
           },
           {
             status: 429,
-          }
+          },
         );
       }
 
       // Rate limiting checks for non-creator users
-      const streamsLastTwoMinutes = await prismaClient.stream.count({
+      const streamsLastTwoMinutes = await db.stream.count({
         where: {
           userId: data.creatorId,
           addedBy: user.id,
@@ -116,7 +113,7 @@ export async function POST(req: NextRequest) {
           },
           {
             status: 429,
-          }
+          },
         );
       }
 
@@ -128,17 +125,17 @@ export async function POST(req: NextRequest) {
           },
           {
             status: 429,
-          }
+          },
         );
       }
     }
 
     const thumbnails = res.thumbnail.thumbnails;
     thumbnails.sort((a: { width: number }, b: { width: number }) =>
-      a.width < b.width ? -1 : 1
+      a.width < b.width ? -1 : 1,
     );
 
-    const existingActiveStreams = await prismaClient.stream.count({
+    const existingActiveStreams = await db.stream.count({
       where: {
         userId: data.creatorId,
         played: false,
@@ -152,16 +149,16 @@ export async function POST(req: NextRequest) {
         },
         {
           status: 429,
-        }
+        },
       );
     }
 
-    const stream = await prismaClient.stream.create({
+    const stream = await db.stream.create({
       data: {
         userId: data.creatorId,
         addedBy: user.id,
         url: data.url,
-        extractedId,
+        extractedId: videoId,
         type: "Youtube",
         title: res.title ?? "Can't find video",
         smallImg:
@@ -188,30 +185,26 @@ export async function POST(req: NextRequest) {
       },
       {
         status: 500,
-      }
+      },
     );
   }
 }
 
 export async function GET(req: NextRequest) {
   const creatorId = req.nextUrl.searchParams.get("creatorId");
-  const session = await getServerSession();
-  const user = await prismaClient.user.findFirst({
-    where: {
-      email: session?.user?.email ?? "",
-    },
-  });
+  const session = await getServerSession(authOptions);
 
-  if (!user) {
+  if (!session?.user.id) {
     return NextResponse.json(
       {
         message: "Unauthenticated",
       },
       {
         status: 403,
-      }
+      },
     );
   }
+  const user = session.user;
 
   if (!creatorId) {
     return NextResponse.json(
@@ -220,12 +213,12 @@ export async function GET(req: NextRequest) {
       },
       {
         status: 411,
-      }
+      },
     );
   }
 
   const [streams, activeStream] = await Promise.all([
-    prismaClient.stream.findMany({
+    db.stream.findMany({
       where: {
         userId: creatorId,
         played: false,
@@ -243,7 +236,7 @@ export async function GET(req: NextRequest) {
         },
       },
     }),
-    prismaClient.currentStream.findFirst({
+    db.currentStream.findFirst({
       where: {
         userId: creatorId,
       },
@@ -265,32 +258,4 @@ export async function GET(req: NextRequest) {
     creatorId,
     isCreator,
   });
-}
-
-export async function DELETE(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-
-    if (!id) {
-      return NextResponse.json({ error: "ID is required" }, { status: 400 });
-    }
-
-    await prismaClient.stream.delete({
-      where: { id: id },
-    });
-
-    return NextResponse.json(
-      { message: "Stream deleted successfully" },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Error deleting stream:", error);
-    return NextResponse.json(
-      { error: "Failed to delete stream" },
-      { status: 500 }
-    );
-  } finally {
-    await prismaClient.$disconnect();
-  }
 }

@@ -1,21 +1,54 @@
-"use client"
-import { useSession } from 'next-auth/react'
-import StreamView from '@/app/components/StreamView'
-import useRedirect from '@/app/hooks/useRedirect';
+"use client";
+import { useEffect } from "react";
+import { useSocket } from "@/context/socket-context";
+import useRedirect from "../../hooks/useRedirect";
+import jwt from "jsonwebtoken";
+import StreamView from "../../components/StreamView";
+import ErrorScreen from "@/components/ErrorScreen";
+import LoadingScreen from "@/components/LoadingScreen";
 
 export default function Component() {
-    const session = useSession();
-    const redirect = useRedirect();
+  const { socket, user, loading, setUser, connectionError } = useSocket();
+  useRedirect();
 
-    if (session.status === "loading") {
-        return <div>Loading...</div>;
+  useEffect(() => {
+    if (user && !user.token) {
+      const token = jwt.sign(
+        {
+          creatorId: user?.id,
+          userId: user?.id,
+        },
+        process.env.NEXT_PUBLIC_SECRET || "",
+        {
+          expiresIn: "24h",
+        }
+      );
+
+      socket?.send(
+        JSON.stringify({
+          type: "join-room",
+          data: {
+            token,
+          },
+        })
+      );
+      setUser({ ...user, token });
     }
+  }, [user]);
 
-    if (!session.data?.user.id) {
-        return <h1>Please Log in....</h1>;
-    }
+  if (connectionError) {
+    return <ErrorScreen>Cannot connect to socket server</ErrorScreen>;
+  }
 
-    return <StreamView creatorId={session.data.user.id} playVideo={true} />;
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  if (!user) {
+    return <ErrorScreen>Please Log in....</ErrorScreen>;
+  }
+
+  return <StreamView creatorId={user.id} playVideo={true} />;
 }
 
-export const dynamic = 'auto'
+export const dynamic = "auto";
